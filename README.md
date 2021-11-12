@@ -1,77 +1,87 @@
 # APCUPS
 Instructions how to install and configure a APC UPS for Rocket Pool Node Operators. 
 
-# Instructions for using an Apricorn Aegis Secure Key with Rocket Pool
+# Introduction
 
-This guide explains how to configure a Rocket Pool node to store its node wallet, password file, and validator signing keys on an Aegis Secure Key (model 3N or 3NX).  This provides an added layer of security for the home server node operator by placing these files on an AES 256 encrypted USB drive that requires a PIN key to unlock.  The key will be configured to remain unlocked when connected to the server during normal operations, reboots, and powered shutdowns.  When combined with a UPS that will issue commanded shutdowns upon a mains power failure, it will remain unlocked so long as standby power is provided to the server by the UPS. 
-
-A PIN will be required whenever the USB key is disconnected from the server or if the server is unplugged from mains power.  The PIN prevents access to the wallet and the eth2.0 validator signing keys in the event of theft of the server.  Even if the thief plugs in the server designed to autoboot upon power restoration, the server will not submit attestations on the installed validators.  This will assure the node operator that they can reinstall and recover their seeds without fear of having two signing keys triggering a slashing event. Also, the node wallet and password file will be inaccessible to the thief without knowing the Aegis Secure Key PIN.  The thief will only have six attempts at Brute-Forcing the PIN.
-
-## Hardware required
-![](img/secureKey.jpg)
-
-Apricorn Aegis Secure Key Model 3NX (4 GB) purchased on Amazon for $53 USD. Note: Any capacity drive will do as you will be storing only a few kilobytes worth of information.  You can order either a USB 3.0 connector (3NX) or a USB C connector (3NXC). The USB drive slot must remain powered during a shutdown. Yellow (they look orange to me) colored USB-A ports, and most USB C continue to provide power when the server is turned off. For my use case, I used a 3NX connected to a rear-facing USB C (Thunderbolt) slot on my server via and USB-A to USB-C dongle.
+If you have an APC UPS, another option is to use apcupsd, which is a more advanced tool to manage your APC UPS.  The package apcupsd provides a daemon which will monitor your APC UPS, and shutdown the system when power is no longer being supplied to the UPS.  An APC UPS. The apcupsd daemon works with most APC Smart-UPS models, as well as most simple signaling models, such as Back-UPS, and BackUPS-Office.
 
 
 
-## Installation instructions
+## Example Installation for a NUC8i5 model
+![](img/BE600M1.jpg)
 
-### Configure the Secure Key
+For my installation I chose a APC UPS Battery Backup and Surge Protector, 600VA Backup Battery Power Supply, BE600M1 Back-UPS with USB Charger Port that retails for ~$65 on Amazon. (https://www.amazon.com/gp/product/B01FWAZEIU/). My goal was not to withstand long-duration power outage but rather maintain operattion during a short-term power interperation of 1 hour or less.  APC provides a useful tool to calculate the corect size of UPS needed if you supply it with your devide power consumption and desirede UPS run-time duration.  [Aegis User Mannual](https://apricorn.com/content/product_pdf/aegis_secure_key/usb_3.0_flash_drive/ask3_manual_configurable_online_2.pdf) 
 
-1. Setup an Admin password on the Secure Key following the *First-Time Use* instruction found in the [Aegis User Mannual](https://apricorn.com/content/product_pdf/aegis_secure_key/usb_3.0_flash_drive/ask3_manual_configurable_online_2.pdf) on page 5 
-1. Enable *Lock-Override Mode* (see page 20 of the manual). This enables the key to remain unlocked during reboots and powered shutdowns.
-1. Set the number of brute-force attempts to 6 by following the *Brute-Force Protection* instruction on page 14. Set the number of before/after attempts to 3 as this is consistent with a Ledger-like hardware wallet. 
-1. Unlock the Aegis Key by entering the Admin PIN and plug it into the server within 30 seconds.
+
+## Installation Instructions
+
+### apcupsd Installation
+
+1. Follow the installation instructions in the UPS package or installing the battery and preparing the UPS for first use. 
+1. Plug the server, NAT/Router and your ISP modem in to the UPS powered plugs on the UPS. Note that two of the plugs are NOT battery protected and are only surge-protected plugs. (I will use those for a future power retore wathcdog ESP8266 IoT to reboot the NUC after mains power has been restored. More to come on this project. )
+
+1. Power up the devices. 
+
 
 <br>
 
 ### Format the Secure Key
 
 
-1. Find the device name: 
+1. Install the apcupsd package via a terminal:
+
     ```
-    sudo fdisk -l
-    ```
-    The Disk model will be titled *Secure Key 3.0*. Note the Device name assigned to the drive. In the example below, it is `/dev/sda1`.
-    <br>
-    
-    ![](img/fdisk.jpg)
-1. Choose the GPT partitioning standard: 
-    ```
-    sudo parted /dev/sda mklabel gpt
-    ```
-1. Once the format is selected, you can create a partition spanning the entire drive by typing: 
-    ```
-    sudo parted -a opt /dev/sda mkpart primary ext4 0% 100%
-    ```
-1. Now that we have a partition available, we can format it as an Ext4 filesystem. To do this, pass the partition to the mkfs.ext4 utility: 
-    ```
-    sudo mkfs.ext4 /dev/sda1
-    ```
-    > Note: Make sure you pass in the partition and not the entire disk. In Linux, disks have names like `sda`, `sdb`, `hda`, etc. The partitions on these disks have a number appended to the end. So we would want to use something like `sda1` and not `sda`.
+    sudo apt-get -y install apcupsd
+     ```
+1. Backup the original configuration files:
+     ```
+    sudo cp /etc/apcupsd/apcupsd.conf /etc/apcupsd/apcupsd.conf.bak
+     ```
+1. Edit the configuration files:
+     ```
+     sudo nano /etc/apcupsd/apcupsd.conf
+     ```
+     Scroll thru the document and alter the follwing settings:
+      ```
+      UPSNAME smartups750
+      UPSCABLE usb
+      UPSTYPE usb
+      DEVICE 
+      POLLTIME 60
+     ```
+1. Backup the original configuration files:
+     ```
+    sudo cp /etc/default/apcupsd /etc/default/apcupsd.bak
+     ```
+1. Edit the configuration files:
+     ```
+     sudo nano /etc/default/apcupsd
+     ```
+     Scroll thru the document and alter the follwing settings:
+      ```
+      ISCONFIGURED=yes
+      ```
 
 
  
  <br>
  
- ### Mount the Secure Key
+ ### Verify that apcupsd is working.
 
-1. Create a /key subdirectory under the default ~/.rocketpool directory to mount the Secure Key
+1. Verify that the daemond is propwerly running in systemctl
     ```
-    sudo mkdir ~/.rocketpool/key
+    sudo systemctl status apcupsd.service
     ```
-1. Edit the /etc/fstab file (`sudo nano /etc/fstab`) to mount the filesystem automatically each time the server boots by adding the following to the bottom of the /etc/fstab file and save. Replace USERNAME with your the username where the /.rocketpool directory was installed.
+    It should display "active (running)" in green text. 
+
+1. Verify that you can obtain the status of the UPS and that the configured setting are displayed. 
     ```
-   /dev/sda1 /home/USERNAME/.rocketpool/key ext4 defaults 0 2
-    ```
-1. Mount the filesystem now by typing:
-    ```
-    sudo mount -a
+   sudo apcaccess status
     ```
 
 <br>
 
-### Configure Rocket Pool
+### Configure the UPS Settings
 
 1. Stop the Rocket Pool service:
     ```
@@ -111,6 +121,20 @@ Apricorn Aegis Secure Key Model 3NX (4 GB) purchased on Amazon for $53 USD. Note
     rocketpool node status
     ```
     
-### Upgrading Rocketpool 
+### Installing an APACHE webserver  (optional)
+
+1. Install the apcupsd package via a terminal:
+    ```
+    sudo apt-get -y install apcupsd
+     ```
+1. Backup the original configuration files:
+     ```
+    sudo cp /etc/apcupsd/apcupsd.conf /etc/apcupsd/apcupsd.conf.bak
+     ```
+
+Via Command Line Interface
+
+Via a web browser
+
  
 During the rocketpool node software upgrade process, the files `config.yml` and `docker-compose.yml` will be overwritten. I recommend just repeating the editing steps above on the newly installed versions of the yml files and saving those redone edits prior to restarting the rocketpool service during the upgrade process.   This method of remaking the editing changes vs saving and restoring the older yml file assures that any new features or settings included in the new yml files are incorporated onto your node.
