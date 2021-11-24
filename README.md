@@ -10,7 +10,7 @@ If you have an APC UPS, another option is to use apcupsd, which is a more advanc
 ## Example Installation for a NUC8i5 model
 ![](img/BE600M1.jpg)
 
-For my installation I chose a APC UPS Battery Backup and Surge Protector, 600VA Backup Battery Power Supply, BE600M1 Back-UPS with USB Charger Port that retails for ~$65 on Amazon. (https://www.amazon.com/gp/product/B01FWAZEIU/). My goal was not to withstand long-duration power outage but rather maintain operattion during a short-term power interperation of 1 hour or less.  APC provides a useful tool to calculate the corect size of UPS needed if you supply it with your devide power consumption and desirede UPS run-time duration.  [Aegis User Mannual](https://apricorn.com/content/product_pdf/aegis_secure_key/usb_3.0_flash_drive/ask3_manual_configurable_online_2.pdf) 
+For my installation I chose a APC UPS Battery Backup and Surge Protector, 600VA Backup Battery Power Supply, BE600M1 Back-UPS with USB Charger Port that retails for ~$65 on Amazon. (https://www.amazon.com/gp/product/B01FWAZEIU/). My goal was not to withstand long-duration power outage but rather maintain operattion during a short-term power interperation of 1 hour or less.  APC provides a useful tool to calculate the corect size of UPS needed if you supply it with your devide power consumption and desirede UPS run-time duration. 
 
 
 ## Installation Instructions
@@ -82,44 +82,6 @@ For my installation I chose a APC UPS Battery Backup and Surge Protector, 600VA 
 <br>
 
 ### Configure the UPS Settings
-
-1. Stop the Rocket Pool service:
-    ```
-    rocketpool service stop
-    ```
-1. Move the data folder into the key mount:
-    ```
-    sudo mv ~/.rocketpool/data ~/.rocketpool/key/
-    ```
-
-1. Edit the config.yml file (`sudo nano ~/.rocketpool/config.yml`) and edit the location of *passwordPath*, *walletPath*, and *vallidatorKeychainPath* by inserting **/key** to the following entries: 
-    ```
-    passwordPath: /.rocketpool/key/data/password
-    walletPath: /.rocketpool/key/data/wallet
-    validatorKeychainPath: /.rocketpool/key/data/validators
-    ````
-    Save the file when done. 
-    
-1. Edit the docker-compose.yml file (`sudo nano ~/.rocketpool/docker-compose.yml`) and edit the location in the *eth2: volumes:* section, by inserting **/key** to the following entry:
-    ```
-     volumes:
-      - ./key/data/validators:/validators
-    ```
-    In the same the docker-compose.yml file scroll down and edit the location in the *validator: volumes:* section, by inserting **/key** to the following entry:
-    ```
-     volumes:
-      - ./key/data/validators:/validators
-    ```
-    Save the file when done. 
-    
-1. Start the Rocket Pool service:
-    ```
-    rocketpool service start
-    ```
-1. Verify that the installation was successful by checking your node status:
-    ```
-    rocketpool node status
-    ```
     
 ### Installing an APACHE webserver  (optional)
 
@@ -135,6 +97,3 @@ For my installation I chose a APC UPS Battery Backup and Surge Protector, 600VA 
 Via Command Line Interface
 
 Via a web browser
-
- 
-During the rocketpool node software upgrade process, the files `config.yml` and `docker-compose.yml` will be overwritten. I recommend just repeating the editing steps above on the newly installed versions of the yml files and saving those redone edits prior to restarting the rocketpool service during the upgrade process.   This method of remaking the editing changes vs saving and restoring the older yml file assures that any new features or settings included in the new yml files are incorporated onto your node.
